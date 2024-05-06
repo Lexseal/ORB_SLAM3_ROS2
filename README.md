@@ -25,7 +25,7 @@ $ sudo apt install ros-$ROS_DISTRO-vision-opencv && sudo apt install ros-$ROS_DI
 ```
 $ mkdir -p colcon_ws/src
 $ cd ~/colcon_ws/src
-$ git clone [https://github.com/zang09/ORB_SLAM3_ROS2.git orbslam3_ros2](https://github.com/007Satvik/ORB_SLAM3_ROS2.git)
+$ git clone https://github.com/007Satvik/ORB_SLAM3_ROS2.git orbslam3_ros2
 ```
 
 2. Change this [line](https://github.com/zang09/ORB_SLAM3_ROS2/blob/ee82428ed627922058b93fea1d647725c813584e/CMakeLists.txt#L5) to your own `python site-packages` path
