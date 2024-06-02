@@ -10,6 +10,8 @@
 #include "sensor_msgs/msg/image.hpp"
 #include "sensor_msgs/msg/imu.hpp"
 #include "tf2_ros/transform_broadcaster.h"
+#include "tf2_ros/buffer.h"
+#include "tf2_ros/transform_listener.h"
 
 #include "message_filters/subscriber.h"
 #include "message_filters/synchronizer.h"
@@ -41,6 +43,10 @@ private:
     std::deque<ORB_SLAM3::IMU::Point> imu_hist;
     int max_imu_data_size = 200;
     double last_processed = 0;
+
+    // transform listener
+    tf2_ros::Buffer::SharedPtr p_tfBuffer;
+    std::shared_ptr<tf2_ros::TransformListener> p_tfListener;
 
     ORB_SLAM3::System* m_SLAM;
 
