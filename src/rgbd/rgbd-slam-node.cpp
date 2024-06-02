@@ -8,8 +8,10 @@ RgbdSlamNode::RgbdSlamNode(ORB_SLAM3::System* pSLAM)
 :   Node("ORB_SLAM3_ROS2"),
     m_SLAM(pSLAM)
 {
-    rgb_sub = std::make_shared<message_filters::Subscriber<ImageMsg> >(this, "camera/color/image_raw");
+    rgb_sub = std::make_shared<message_filters::Subscriber<ImageMsg> >(this, "/camera/color/image_raw");
     depth_sub = std::make_shared<message_filters::Subscriber<ImageMsg> >(this, "/camera/aligned_depth_to_color/image_raw");
+
+    imu_sub = this->create_subscription<sensor_msgs::msg::Imu>("/camera/imu", 10, std::bind(&RgbdSlamNode::grabImu, this, _1));
 
     tf_broadcaster_ =
         std::make_unique<tf2_ros::TransformBroadcaster>(*this);
@@ -26,6 +28,17 @@ RgbdSlamNode::~RgbdSlamNode()
 
     // Save camera trajectory
     m_SLAM->SaveKeyFrameTrajectoryTUM("KeyFrameTrajectory.txt");
+}
+
+void RgbdSlamNode::grabImu(const sensor_msgs::msg::Imu::SharedPtr msgIMU)
+{
+    ORB_SLAM3::IMU::Point imu_data(msgIMU->linear_acceleration.x, msgIMU->linear_acceleration.y,
+                                   msgIMU->linear_acceleration.z, msgIMU->angular_velocity.x, msgIMU->angular_velocity.y, msgIMU->angular_velocity.z,
+                                   Utility::StampToSec(msgIMU->header.stamp));
+    imu_hist.push_back(imu_data);
+    while (imu_hist.size() > max_imu_data_size) {
+        imu_hist.pop_front();
+    }
 }
 
 void RgbdSlamNode::GrabRGBD(const ImageMsg::SharedPtr msgRGB, const ImageMsg::SharedPtr msgD)
@@ -52,7 +65,18 @@ void RgbdSlamNode::GrabRGBD(const ImageMsg::SharedPtr msgRGB, const ImageMsg::Sh
         return;
     }
 
-    Sophus::SE3f result = m_SLAM->TrackRGBD(cv_ptrRGB->image, cv_ptrD->image, Utility::StampToSec(msgRGB->header.stamp));
+    std::vector<ORB_SLAM3::IMU::Point> imu_meas;
+    // get everything between last_processed and current time stamp of the image
+    for (auto it = imu_hist.begin(); it != imu_hist.end(); it++) {
+        if (it->t > last_processed) {
+            imu_meas.push_back(*it);
+        } else if (it->t >= Utility::StampToSec(msgRGB->header.stamp)) {
+            break;
+        }
+    }
+    last_processed = Utility::StampToSec(msgRGB->header.stamp);
+
+    Sophus::SE3f result = m_SLAM->TrackRGBD(cv_ptrRGB->image, cv_ptrD->image, Utility::StampToSec(msgRGB->header.stamp), imu_meas);
 
     geometry_msgs::msg::TransformStamped transform;
     transform.header.stamp = msgRGB->header.stamp;
